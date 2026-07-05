@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+mcp_server/lifeflow.db
+.venv/
+*.egg-info/
+agent/.adk/
