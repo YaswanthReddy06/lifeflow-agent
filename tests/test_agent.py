@@ -68,3 +68,32 @@ def test_log_expense_rejects_bad_amount():
 
     with pytest.raises(security.ValidationError):
         log_expense(label="Something", amount=-10, category="misc")
+
+
+def test_log_expense_requires_confirmation_above_threshold():
+    from mcp_server.server import HIGH_VALUE_THRESHOLD, log_expense
+
+    result = log_expense(label="New headphones", amount=HIGH_VALUE_THRESHOLD, category="shopping")
+    assert result["status"] == "confirmation_required"
+    assert "plain_english_action" in result
+    # Must not have been written to the database yet.
+    with db.get_conn() as conn:
+        count = conn.execute("SELECT COUNT(*) FROM expenses").fetchone()[0]
+    assert count == 0
+
+
+def test_log_expense_logs_after_confirmation():
+    from mcp_server.server import HIGH_VALUE_THRESHOLD, log_expense
+
+    result = log_expense(label="New headphones", amount=HIGH_VALUE_THRESHOLD, category="shopping", confirm=True)
+    assert result["status"] == "logged"
+    with db.get_conn() as conn:
+        count = conn.execute("SELECT COUNT(*) FROM expenses").fetchone()[0]
+    assert count == 1
+
+
+def test_log_expense_below_threshold_needs_no_confirmation():
+    from mcp_server.server import log_expense
+
+    result = log_expense(label="Coffee", amount=4.50, category="food")
+    assert result["status"] == "logged"

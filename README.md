@@ -39,9 +39,15 @@ See `docs/ARCHITECTURE.md` for a full diagram and concept-to-file mapping.
 |---|---|
 | Multi-agent system (ADK) | `agent/orchestrator.py` + 3 sub-agents |
 | MCP Server | `mcp_server/server.py`, consumed via `agent/mcp_connection.py` |
-| Security features | `mcp_server/security.py` — input validation, PII masking, range clamping; sub-agent instructions that scope out medical advice |
+| Security features | `mcp_server/security.py` — input validation, PII masking, range clamping; plus a human-in-the-loop confirmation gate for high-value expenses (`log_expense`'s `confirm` flow — a "Vibe Diff"-style approval step) |
+| Agent Skills | `skills/habit-streak-coach/SKILL.md` — a real, portable skill file, loaded and actually used at runtime by `habits_agent.py` (see `docs/CONTEXT_ENGINEERING.md` for the honest tradeoffs of how it's loaded) |
 | Antigravity | Used for local scaffolding and iteration — see below |
 | Deployability | `docs/DEPLOYMENT.md` — Cloud Run packaging via `adk deploy` |
+
+Additional documentation making two more Day 1/5 concepts explicit (not separately scored, but shows deeper understanding):
+- `docs/CONTEXT_ENGINEERING.md` — static vs. dynamic context, mapped to actual files
+- `docs/SPEC.md` — Gherkin-style Given/When/Then behavior scenarios for every feature
+- `tests/run_eval.py` — a lightweight, honestly-labeled evaluation harness that runs the real agent against 4 scenarios and checks whether the expected tool was actually called (a basic trajectory check, run with `python tests/run_eval.py` — needs your API key, makes real LLM calls, not part of the free/fast pytest suite)
 
 ## Where Antigravity fits in this build
 
@@ -81,6 +87,8 @@ Try asking it things like:
 - "I just took my vitamins."
 - "I spent $12 on coffee today, log it under food."
 - "I have 30 minutes and $15 — what's a healthy break I could take?" (this one exercises all three specialists at once)
+- "I spent $75 on shoes, log it under shopping." (this one is above the $50 confirmation threshold — the agent should ask you to confirm before logging it; say "yes" and it will log on the next turn)
+- "How am I doing with my vitamins this week?" (log a few vitamin entries first, then ask this — triggers the habit-streak-coach skill instead of a plain log acknowledgment)
 
 ## Running the tests (no API key required)
 
@@ -107,10 +115,16 @@ lifeflow-agent/
 │   ├── server.py             # MCP tools
 │   ├── db.py                 # local SQLite persistence
 │   └── security.py           # validation + PII masking
-├── tests/test_agent.py
+├── skills/
+│   └── habit-streak-coach/SKILL.md   # a real, loaded-at-runtime Agent Skill
+├── tests/
+│   ├── test_agent.py       # fast, free, no API key needed
+│   └── run_eval.py         # real-agent trajectory eval — needs API key
 ├── docs/
 │   ├── ARCHITECTURE.md
-│   └── DEPLOYMENT.md
+│   ├── DEPLOYMENT.md
+│   ├── CONTEXT_ENGINEERING.md   # static vs. dynamic context, explained
+│   └── SPEC.md                  # Gherkin-style behavior scenarios
 ├── requirements.txt
 ├── .env.example
 └── README.md

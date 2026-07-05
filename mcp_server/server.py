@@ -92,12 +92,39 @@ def get_habit_history(limit: int = 10) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+HIGH_VALUE_THRESHOLD = 50.0  # dollars — above this, a human must explicitly confirm
+
+
 @mcp.tool()
-def log_expense(label: str, amount: float, category: str) -> dict:
-    """Log a spending item with amount and category, for the budget sub-agent."""
+def log_expense(label: str, amount: float, category: str, confirm: bool = False) -> dict:
+    """
+    Log a spending item with amount and category, for the budget sub-agent.
+
+    Security (Day 4 concept — "Vibe Diff" / human-in-the-loop for high-stakes
+    actions): expenses at or above HIGH_VALUE_THRESHOLD are NOT written to
+    the database on the first call. Instead, this returns a plain-English
+    description of exactly what would happen and asks for explicit
+    confirmation. The calling agent must relay that description to the user
+    and only call this tool again with confirm=True after the user agrees.
+    This mirrors the course's "Vibe Diff" idea: translate a high-stakes
+    action into plain language for a human to approve *before* it happens,
+    rather than silently trusting the agent's judgment for larger amounts.
+    """
     label = validate_text(label, max_len=80)
     category = validate_text(category, max_len=40)
     amount = validate_amount(amount)
+
+    if amount >= HIGH_VALUE_THRESHOLD and not confirm:
+        return {
+            "status": "confirmation_required",
+            "plain_english_action": (
+                f"This would log a ${amount:.2f} expense labeled '{label}' "
+                f"under the '{category}' category — that's at or above the "
+                f"${HIGH_VALUE_THRESHOLD:.0f} review threshold."
+            ),
+            "next_step": "Ask the user to confirm. If they agree, call log_expense again with confirm=True.",
+        }
+
     with db.get_conn() as conn:
         conn.execute(
             "INSERT INTO expenses (label, amount, category) VALUES (?, ?, ?)",

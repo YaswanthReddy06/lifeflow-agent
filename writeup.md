@@ -64,8 +64,35 @@ repo.
   long digit sequence out of free-text notes before they're persisted.
 - The habits agent is instructed to log facts only, never interpret or
   advise on medication.
+- Expenses at or above $50 require explicit human confirmation before
+  being written to the database — `log_expense` returns a plain-English
+  description of the action and a `confirmation_required` status instead
+  of silently logging it. This mirrors the course's "Vibe Diff" idea:
+  translate a high-stakes action into plain language for a human to
+  approve before it happens, rather than trusting the agent's judgment
+  alone for larger amounts.
 - No secrets are committed; API keys load from environment variables via
   `.env` (git-ignored), with `.env.example` as the template.
+
+## Agent Skills
+
+`skills/habit-streak-coach/SKILL.md` is a real, portable skill file (same
+format Antigravity uses) that teaches the habits agent how to turn raw
+habit-history rows into an honest streak summary — only when the user
+asks a consistency/progress question, not on a simple one-off log. It's
+loaded and actually used at runtime by `habits_agent.py`, not just a
+decorative repo file. `docs/CONTEXT_ENGINEERING.md` documents the honest
+tradeoff in how it's loaded (folded into static context at import time,
+rather than true per-turn progressive disclosure) — a small project's
+pragmatic choice, called out explicitly rather than overstated.
+
+## Evaluation
+
+`tests/run_eval.py` is a lightweight, honestly-labeled evaluation harness
+(not the full multi-dimension LLM-as-judge scoring the course describes)
+that runs the real agent against 4 scenarios and checks whether the
+expected tool was actually called — a basic trajectory check, separate
+from the fast/free correctness tests in `tests/test_agent.py`.
 
 ## Where Antigravity fit in the build
 
